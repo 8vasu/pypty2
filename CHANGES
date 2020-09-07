@@ -22,7 +22,7 @@ Lib/pty.py -> ./pty2.py:
 	+ _termset()
 	+ _winset()
 	_copy() -> _mainloop():
-		+ return upon master EOF
+		+ return upon master EOF or upon OSError in master_read()
 	spawn():
 		+ set slave termios
 		+ set slave winsize
@@ -34,3 +34,4 @@ Lib/pty.py -> ./pty2.py:
 		+ block signals except during select.select() in _mainloop() and during os.waitpid();
 		  even the SIGWINCH handler blocks signals to avoid os.close() failing on a slave descriptor;
 		  if any descriptor of the slave remains open after child has exited, _mainloop() will hang on Linux
+		- except OSError

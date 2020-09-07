@@ -199,7 +199,10 @@ def _mainloop(master_fd, saved_mask, master_read=_read, stdin_read=_read):
         rfds = select(fds, [], [])[0]
         _sigblock()
         if master_fd in rfds:
-            data = master_read(master_fd)
+            try:
+                data = master_read(master_fd)
+            except OSError:
+                data = b""
             if not data:
                 return
             else:
@@ -232,8 +235,6 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_sig
 
     try:
         _mainloop(master_fd, saved_mask, master_read, stdin_read)
-    except OSError:
-        pass
     finally:
         if mode:
             tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
