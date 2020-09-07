@@ -1,9 +1,12 @@
 v1 -> v2
 
 Lib/tty.py -> ./tty.py:
+	+ mode_echo()
 	+ mode_raw()
 	+ login()
 	setraw():
+		+ return original termios to avoid multiple tcgetattr calls
+	setcbreak():
 		+ return original termios to avoid multiple tcgetattr calls
 
 Lib/pty.py -> ./pty2.py:
@@ -19,15 +22,15 @@ Lib/pty.py -> ./pty2.py:
 	+ _termset()
 	+ _winset()
 	_copy() -> _mainloop():
-		+ catch OSError while reading from master and return
+		+ return upon master EOF
 	spawn():
 		+ set slave termios
 		+ set slave winsize
 		+ register SIGWINCH handler
 		- use pty.fork()
-		+ use pty.openpty()
+		+ use pty2.openpty()
 		+ use os.fork()
 		+ use tty.login()
 		+ block signals except during select.select() in _mainloop() and during os.waitpid();
 		  even the SIGWINCH handler blocks signals to avoid os.close() failing on a slave descriptor;
-		  if any descriptor of the slave remains open, _mainloop() will not terminate on Linux
+		  if any descriptor of the slave remains open after child has exited, _mainloop() will hang on Linux
