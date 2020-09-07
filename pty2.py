@@ -235,11 +235,12 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_sig
     except OSError:
         pass
     finally:
-        if bkh:
-            signal.signal(SIGWINCH, bkh)
         if mode:
             tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
-        os.close(master_fd)
-        _sigreset(saved_mask)
 
-        return os.waitpid(pid, 0)[1]
+    if bkh:
+        signal.signal(SIGWINCH, bkh)
+    os.close(master_fd)
+    _sigreset(saved_mask)
+
+    return os.waitpid(pid, 0)[1]
