@@ -70,7 +70,7 @@ def login(fd):
     os.dup2(fd, STDIN_FILENO)
     os.dup2(fd, STDOUT_FILENO)
     os.dup2(fd, STDERR_FILENO)
-    if (fd > STDERR_FILENO):
+    if fd > STDERR_FILENO:
         os.close(fd)
 
     # The tty becomes the controlling terminal.
