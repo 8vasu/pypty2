@@ -3,6 +3,7 @@ v1 -> v2
 Lib/tty.py -> ./tty.py:
 	+ mode_echo()
 	+ mode_raw()
+	+ getwinsz()
 	+ login()
 	setraw():
 		+ return original termios to avoid multiple tcgetattr calls
@@ -12,15 +13,19 @@ Lib/tty.py -> ./tty.py:
 Lib/pty.py -> ./pty2.py:
 	- master_open()
 	- slave_open()
+	openpty():
+		+ set slave termios
+		+ set slave winsize
 	fork():
+		+ set slave termios
+		+ set slave winsize
 		- some parts of fallback code
 		+ use tty.login() in fallback code as replacement
 	+ _getmask()
 	+ _sigblock()
 	+ _sigreset()
-	+ _winresz()
-	+ _termset()
-	+ _winset()
+	+ _pty_setup()
+	+ _winchset()
 	_copy() -> _mainloop():
 		+ return upon master EOF or upon OSError in master_read()
 	spawn():

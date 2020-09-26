@@ -24,7 +24,7 @@ with open(filename, mode) as script:
     print('Script started, file is', filename)
     script.write(('Script started on %s\n' % time.asctime()).encode())
 
-    pty2.spawn(shell, read, handle_sigwinch=True)
+    pty2.spawn(shell, read, handle_winch=True)
 
     script.write(('Script done on %s\n' % time.asctime()).encode())
     print('Script done, file is', filename)

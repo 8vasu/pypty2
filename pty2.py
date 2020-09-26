@@ -16,7 +16,6 @@
 
 from select import select
 from fcntl import ioctl
-from struct import pack
 import os
 import sys
 import tty
@@ -32,16 +31,13 @@ CHILD = 0
 
 ALL_SIGNALS = signal.valid_signals()
 
-HAVE_WINSZ = False
 HAVE_WINCH = False
-try:
-    TIOCGWINSZ = tty.TIOCGWINSZ
-    TIOCSWINSZ = tty.TIOCSWINSZ
-    HAVE_WINSZ = True
-    SIGWINCH = signal.SIGWINCH
-    HAVE_WINCH = True
-except AttributeError:
-    pass
+if tty.HAVE_WINSZ:
+    try:
+        SIGWINCH = signal.SIGWINCH
+        HAVE_WINCH = True
+    except AttributeError:
+        pass
 
 def _open_terminal():
     """Open pty master and return (master_fd, tty_name)."""
@@ -55,36 +51,42 @@ def _open_terminal():
             return (fd, '/dev/tty' + x + y)
     raise OSError('out of pty devices')
 
-def openpty():
+def openpty(mode=None, winsz=None):
     """openpty() -> (master_fd, slave_fd)
     Open a pty master/slave pair, using os.openpty() if possible."""
 
     try:
-        return os.openpty()
+        master_fd, slave_fd = os.openpty()
     except (AttributeError, OSError):
-        pass
-    master_fd, slave_name = _open_terminal()
-    slave_fd = slave_open(slave_name)
+        master_fd, slave_name = _open_terminal()
+        slave_fd = slave_open(slave_name)
+
+    if mode:
+        tty.tcsetattr(slave_fd, tty.TCSAFLUSH, mode)
+    if tty.HAVE_WINSZ and winsz:
+        ioctl(slave_fd, tty.TIOCSWINSZ, winsz)
+
     return master_fd, slave_fd
 
-def fork():
+def fork(mode=None, winsz=None):
     """fork() -> (pid, master_fd)
     Fork and make the child a session leader with a controlling terminal."""
 
-    try:
-        pid, fd = os.forkpty()
-    except (AttributeError, OSError):
-        pass
-    else:
-        if pid == CHILD:
-            try:
-                os.setsid()
-            except OSError:
-                # os.forkpty() already set us session leader
-                pass
-        return pid, fd
+    if not mode and not winsz:
+        try:
+            pid, fd = os.forkpty()
+        except (AttributeError, OSError):
+            pass
+        else:
+            if pid == CHILD:
+                try:
+                    os.setsid()
+                except OSError:
+                    # os.forkpty() already set us session leader
+                    pass
+            return pid, fd
 
-    master_fd, slave_fd = openpty()
+    master_fd, slave_fd = openpty(mode, winsz)
     pid = os.fork()
     if pid == CHILD:
         os.close(master_fd)
@@ -117,61 +119,51 @@ def _sigreset(saved_mask):
     """Restores signal mask."""
     signal.pthread_sigmask(signal.SIG_SETMASK, saved_mask)
 
-def _winresz(fd):
-    """Resizes window.
-    If current stdin and fd are terminals, then the window
-    size of fd is set to that of current stdin and this
-    window size is returned; None is returned otherwise."""
-    try:
-        s = pack('HHHH', 0, 0, 0, 0)
-        w = ioctl(STDIN_FILENO, TIOCGWINSZ, s)
-        ioctl(fd, TIOCSWINSZ, w)
-        return w
-    except OSError:
-        pass
-
-    return None
-
-def _termset(slave_fd, slave_echo):
-    """Set termios of current stdin and of pty slave.
-    If current stdin is a tty, returns original termios
-    thereof; returns None otherwise."""
+def _pty_setup(slave_echo):
+    """Opens a pty pair. If current stdin is a tty, then
+    applies current stdin's termios and winsize to the slave,
+    sets current stdin to raw mode. Returns (master, slave,
+    original stdin mode/None, stdin winsize/None)."""
     try:
         mode = tty.tcgetattr(STDIN_FILENO)
     except tty.error:
         mode = None
+        winsz = None
 
-    if mode:
-        new = list(mode)
-        tty.mode_echo(new, slave_echo)
-        tty.tcsetattr(slave_fd, tty.TCSAFLUSH, new)
-        tty.mode_raw(new)
-        tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, new)
+        master_fd, slave_fd = openpty()
+
+        _mode = tty.tcgetattr(slave_fd)
+        tty.mode_echo(_mode, slave_echo)
+        tty.tcsetattr(slave_fd, tty.TCSAFLUSH, _mode)
     else:
-        new = tty.tcgetattr(slave_fd)
-        tty.mode_echo(new, slave_echo)
-        tty.tcsetattr(slave_fd, tty.TCSAFLUSH, new)
+        winsz = tty.getwinsz(STDIN_FILENO)
 
-    return mode
+        _mode = list(mode)
+        tty.mode_echo(_mode, slave_echo)
 
-def _winset(slave_fd, saved_mask, handle_sigwinch):
-    """Set pty slave window size and SIGWINCH handler.
-    Returns old SIGWINCH handler if relevant, None
-    otherwise."""
+        master_fd, slave_fd = openpty(_mode, winsz)
+
+        tty.mode_raw(_mode)
+        tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, _mode)
+
+    return master_fd, slave_fd, mode, winsz
+
+def _winchset(slave_fd, saved_mask, handle_winch):
+    """Installs SIGWINCH handler. Returns old SIGWINCH
+    handler if relevant; returns None otherwise."""
     bkh = None
-    can_resize_win = HAVE_WINSZ and _winresz(slave_fd)
-    handle_sigwinch = handle_sigwinch and can_resize_win and HAVE_WINCH
-    if handle_sigwinch:
+    if handle_winch:
         def _hwinch(signum, frame):
             """SIGWINCH handler."""
             _sigblock()
-            try:
-                new_slave_fd = os.open(slave_path, os.O_RDWR)
-            except OSError:
-                pass
-            else:
-                _winresz(new_slave_fd)
-                os.close(new_slave_fd)
+            sz = tty.getwinsz(STDIN_FILENO)
+            if sz:
+                try:
+                    new_slave_fd = os.open(slave_path, os.O_RDWR)
+                    ioctl(new_slave_fd, tty.TIOCSWINSZ, sz)
+                    os.close(new_slave_fd)
+                except OSError:
+                    pass
             _sigreset(saved_mask)
 
         bkh = signal.getsignal(SIGWINCH)
@@ -214,23 +206,26 @@ def _mainloop(master_fd, saved_mask, master_read=_read, stdin_read=_read):
             else:
                 _writen(master_fd, data)
 
-def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_sigwinch=False):
+def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_winch=False):
     """Spawn a process."""
     if type(argv) == type(''):
         argv = (argv,)
     sys.audit('pty.spawn', argv)
 
     saved_mask = _getmask()
-    master_fd, slave_fd = openpty()
-    mode = _termset(slave_fd, slave_echo)
-    bkh = _winset(slave_fd, saved_mask, handle_sigwinch)
+    _sigblock() # Reset during select() in _mainloop.
+
+    master_fd, slave_fd, mode, winsz = _pty_setup(slave_echo)
+    handle_winch = handle_winch and winsz and HAVE_WINCH
+    bkh = _winchset(slave_fd, saved_mask, handle_winch)
+
     pid = os.fork()
     if pid == CHILD:
         os.close(master_fd)
         tty.login(slave_fd)
+        _sigreset(saved_mask)
         os.execlp(argv[0], *argv)
 
-    _sigblock() # Reset during select() in _mainloop.
     os.close(slave_fd)
 
     try:
