@@ -175,13 +175,19 @@ def _winchset(slave_fd, saved_mask, handle_winch):
 
     return bkh
 
-def _mainloop(master_fd, saved_mask, master_read=_read, stdin_read=_read):
+_select = select
+def select(rlist, wlist, xlist):
+    if rlist:
+        return _select(rlist, wlist, xlist)
+    return [], [], []
+
+def _copy(master_fd, saved_mask=set(), master_read=_read, stdin_read=_read):
     """Parent copy loop for spawn.
     Copies
             pty master -> standard output   (master_read)
             standard input -> pty master    (stdin_read)
     To exit from this loop
-        A. FreeBSD, OpenBSD, NetBSD return upon master EOF,
+        A. FreeBSD, OpenBSD, NetBSD return no data upon reading master EOF,
         B. Linux throws OSError when trying to read from master when
             1. ALL descriptors of slave are closed in parent AND
             2. child has exited."""
@@ -190,19 +196,28 @@ def _mainloop(master_fd, saved_mask, master_read=_read, stdin_read=_read):
         _sigreset(saved_mask)
         rfds = select(fds, [], [])[0]
         _sigblock()
+        if not rfds:
+            return
         if master_fd in rfds:
             try:
                 data = master_read(master_fd)
             except OSError:
                 data = b""
             if not data:
-                return
+                fds.remove(master_fd)
+                try:
+                    fds.remove(STDIN_FILENO)
+                except ValueError:
+                    pass
             else:
                 os.write(STDOUT_FILENO, data)
         if STDIN_FILENO in rfds:
             data = stdin_read(STDIN_FILENO)
             if not data:
-                fds.remove(STDIN_FILENO)
+                try:
+                    fds.remove(STDIN_FILENO)
+                except ValueError:
+                    pass
             else:
                 _writen(master_fd, data)
 
@@ -213,7 +228,7 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_win
     sys.audit('pty.spawn', argv)
 
     saved_mask = _getmask()
-    _sigblock() # Reset during select() in _mainloop.
+    _sigblock() # Reset during select() in _copy.
 
     master_fd, slave_fd, mode, winsz = _pty_setup(slave_echo)
     handle_winch = handle_winch and winsz and HAVE_WINCH
@@ -229,7 +244,7 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_win
     os.close(slave_fd)
 
     try:
-        _mainloop(master_fd, saved_mask, master_read, stdin_read)
+        _copy(master_fd, saved_mask, master_read, stdin_read)
     finally:
         if mode:
             tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)

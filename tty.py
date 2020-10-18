@@ -73,7 +73,7 @@ def getwinsz(fd):
     not HAVE_WINSZ, then None is returned."""
     if HAVE_WINSZ:
         try:
-            s = pack('HHHH', 0, 0, 0, 0)
+            s = pack("HHHH", 0, 0, 0, 0)
             winsz = ioctl(fd, TIOCGWINSZ, s)
             return winsz
         except OSError:
