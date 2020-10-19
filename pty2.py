@@ -175,12 +175,6 @@ def _winchset(slave_fd, saved_mask, handle_winch):
 
     return bkh
 
-_select = select
-def select(rlist, wlist, xlist):
-    if rlist:
-        return _select(rlist, wlist, xlist)
-    return [], [], []
-
 def _copy(master_fd, saved_mask=set(), master_read=_read, stdin_read=_read):
     """Parent copy loop for spawn.
     Copies
@@ -192,9 +186,10 @@ def _copy(master_fd, saved_mask=set(), master_read=_read, stdin_read=_read):
             1. ALL descriptors of slave are closed in parent AND
             2. child has exited."""
     fds = [master_fd, STDIN_FILENO]
+    args = [fds, [], []]
     while True:
         _sigreset(saved_mask)
-        rfds = select(fds, [], [])[0]
+        rfds = select(*args)[0]
         _sigblock()
         if not rfds:
             return
@@ -204,16 +199,14 @@ def _copy(master_fd, saved_mask=set(), master_read=_read, stdin_read=_read):
             except OSError:
                 data = b""
             if not data:
-                fds = []
+                fds.remove(master_fd)
+                args.append(0.01) # set timeout
             else:
                 os.write(STDOUT_FILENO, data)
         if STDIN_FILENO in rfds:
             data = stdin_read(STDIN_FILENO)
             if not data:
-                try:
-                    fds.remove(STDIN_FILENO)
-                except ValueError:
-                    pass
+                fds.remove(STDIN_FILENO)
             else:
                 _writen(master_fd, data)
 

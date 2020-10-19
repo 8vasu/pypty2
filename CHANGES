@@ -26,12 +26,10 @@ Lib/pty.py -> ./pty2.py:
 	+ _sigreset()
 	+ _pty_setup()
 	+ _winchset()
-	select():
-		+ return three empty lists immediately if first argument ("rlist") is empty
 	_copy():
-		+ return when select(fds, [], [])[0] is []; a cleaner alternative would be
-		  to return when fds is [] (while fds: ...); however, one of the existing
-		  tests depends on this
+		+ except OSError in master_read()
+		+ set timeout for select() if master_read() returns b"" [ for
+		  *BSD ] or if there is OSError in master_read() [ for Linux ]
 	spawn():
 		+ set slave termios
 		+ set slave winsize
@@ -40,9 +38,11 @@ Lib/pty.py -> ./pty2.py:
 		+ use pty2.openpty()
 		+ use os.fork()
 		+ use tty.login()
-		+ block signals except during select.select() in _copy() and during os.waitpid();
-		  even the SIGWINCH handler blocks signals to avoid os.close() failing on a slave descriptor;
-		  if any descriptor of the slave remains open after child has exited, _copy() will hang on Linux
+		+ block signals except during select.select() in _copy() and
+		  during os.waitpid(); even the SIGWINCH handler blocks signals
+		  to avoid os.close() failing on a slave descriptor; if any
+		  descriptor of the slave remains open after child has exited,
+		  _copy() will hang on Linux
 		- except OSError
 
 Lib/test/test_pty.py -> ./test_pty.py
@@ -51,3 +51,5 @@ Lib/test/test_pty.py -> ./test_pty.py
 		+ test slave termios setting
 		+ test slave winsize setting
 	+ PtyTest.test_master_read()
+	SmallPtyTests._mock_select():
+		+ timeout argument which is ignored

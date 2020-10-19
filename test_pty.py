@@ -343,8 +343,9 @@ class SmallPtyTests(unittest.TestCase):
         self.files.extend(socketpair)
         return socketpair
 
-    def _mock_select(self, rfds, wfds, xfds):
+    def _mock_select(self, rfds, wfds, xfds, timeout=0):
         # This will raise IndexError when no more expected calls exist.
+        # This ignores the timeout
         self.assertEqual(self.select_rfds_lengths.pop(0), len(rfds))
         return self.select_rfds_results.pop(0), [], []
 
