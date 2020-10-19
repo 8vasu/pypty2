@@ -204,11 +204,7 @@ def _copy(master_fd, saved_mask=set(), master_read=_read, stdin_read=_read):
             except OSError:
                 data = b""
             if not data:
-                fds.remove(master_fd)
-                try:
-                    fds.remove(STDIN_FILENO)
-                except ValueError:
-                    pass
+                fds = []
             else:
                 os.write(STDOUT_FILENO, data)
         if STDIN_FILENO in rfds:
