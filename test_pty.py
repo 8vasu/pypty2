@@ -79,7 +79,8 @@ def expectedFailureIfStdinIsTTY(fun):
     return fun
 
 def expectedFailureOnBSD(fun):
-    if platform.system().endswith("BSD"):
+    PLATFORM = platform.system()
+    if PLATFORM.endswith("BSD") or PLATFORM == "Darwin":
         return unittest.expectedFailure(fun)
     return fun
 
