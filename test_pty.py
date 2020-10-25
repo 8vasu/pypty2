@@ -103,6 +103,7 @@ class PtyTest(unittest.TestCase):
         # signal: just ignore the signal.
         pass
 
+    #@expectedFailure
     def test_openpty(self):
         try:
             mode = tty.tcgetattr(pty.STDIN_FILENO)
