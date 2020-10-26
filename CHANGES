@@ -46,6 +46,7 @@ Lib/pty.py -> ./pty2.py:
 		- except OSError
 
 Lib/test/test_pty.py -> ./test_pty.py
+	+ expectedFailureIfStdinIsTTY()
 	+ expectedFailureOnBSD()
 	PtyTest.test_basic() -> PtyTest.test_openpty():
 		+ test slave termios setting
