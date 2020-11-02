@@ -125,7 +125,7 @@ class PtyTest(unittest.TestCase):
                 self.stdin_cols = stdin_dim.columns
                 old_stdin_winsz = struct.pack("HHHH", self.stdin_rows,
                                               self.stdin_cols, 0, 0)
-                self.addCleanup(_set_term_winsz, old_stdin_winsz)
+                self.addCleanup(_set_term_winsz, pty.STDIN_FILENO, old_stdin_winsz)
             except OSError:
                 # possible reason: current stdin is not a tty
                 pass
