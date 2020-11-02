@@ -166,12 +166,12 @@ def _winchset(slave_fd, saved_mask, handle_winch):
                     pass
             _sigreset(saved_mask)
 
-        bkh = signal.getsignal(SIGWINCH)
         slave_path = os.ttyname(slave_fd)
         try:
-            signal.signal(SIGWINCH, _hwinch) # Fails if not called from main thread.
+            # Raises ValueError if not called from main thread.
+            bkh = signal.signal(SIGWINCH, _hwinch)
         except ValueError:
-            bkh = None
+            pass
 
     return bkh
 
