@@ -128,7 +128,6 @@ class PtyTest(unittest.TestCase):
                                               self.stdin_cols, 0, 0)
                 self.addCleanup(_set_term_winsz, pty.STDIN_FILENO, old_stdin_winsz)
             except OSError:
-                # possible reason: current stdin is not a tty
                 pass
 
     def handle_sig(self, sig, frame):
@@ -149,7 +148,7 @@ class PtyTest(unittest.TestCase):
         try:
             mode = tty.tcgetattr(pty.STDIN_FILENO)
         except tty.error:
-            # possible reason: current stdin is not a tty
+            # not a tty or bad/closed fd
             debug("tty.tcgetattr(pty.STDIN_FILENO) failed")
             mode = None
 
@@ -169,7 +168,6 @@ class PtyTest(unittest.TestCase):
                 self.assertEqual(new_stdin_winsz, target_stdin_winsz,
                                  "pty.STDIN_FILENO window size unchanged")
             except OSError:
-                # possible reason: current stdin is not a tty
                 warnings.warn("Failed to set pty.STDIN_FILENO window size")
                 pass
 
