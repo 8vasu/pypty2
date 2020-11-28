@@ -64,7 +64,7 @@ def openpty(mode=None, winsz=None):
     if mode:
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, mode)
     if tty.HAVE_WINSZ and winsz:
-        ioctl(slave_fd, tty.TIOCSWINSZ, winsz)
+        tty.setwinsz(slave_fd, winsz)
 
     return master_fd, slave_fd
 
@@ -124,19 +124,19 @@ def _pty_setup(slave_echo):
     applies current stdin's termios and winsize to the slave,
     sets current stdin to raw mode. Returns (master, slave,
     original stdin mode/None, stdin winsize/None)."""
+    mode = None
+    winsz = None
     try:
         mode = tty.tcgetattr(STDIN_FILENO)
     except tty.error:
-        mode = None
-        winsz = None
-
         master_fd, slave_fd = openpty()
 
         _mode = tty.tcgetattr(slave_fd)
         tty.mode_echo(_mode, slave_echo)
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, _mode)
     else:
-        winsz = tty.getwinsz(STDIN_FILENO)
+        if tty.HAVE_WINSZ:
+            winsz = tty.getwinsz(STDIN_FILENO)
 
         _mode = list(mode)
         tty.mode_echo(_mode, slave_echo)
@@ -156,14 +156,9 @@ def _winchset(slave_fd, saved_mask, handle_winch):
         def _hwinch(signum, frame):
             """SIGWINCH handler."""
             _sigblock()
-            sz = tty.getwinsz(STDIN_FILENO)
-            if sz:
-                try:
-                    new_slave_fd = os.open(slave_path, os.O_RDWR)
-                    ioctl(new_slave_fd, tty.TIOCSWINSZ, sz)
-                    os.close(new_slave_fd)
-                except OSError:
-                    pass
+            new_slave_fd = os.open(slave_path, os.O_RDWR)
+            tty.setwinsz(new_slave_fd, tty.getwinsz(STDIN_FILENO))
+            os.close(new_slave_fd)
             _sigreset(saved_mask)
 
         slave_path = os.ttyname(slave_fd)

@@ -21,18 +21,10 @@ import unittest
 import struct
 import tty
 import fcntl
-import platform
 import warnings
 
 TEST_STRING_1 = b"I wish to buy a fish license.\n"
 TEST_STRING_2 = b"For my pet fish, Eric.\n"
-
-try:
-    _TIOCGWINSZ = tty.TIOCGWINSZ
-    _TIOCSWINSZ = tty.TIOCSWINSZ
-    _HAVE_WINSZ = True
-except AttributeError:
-    _HAVE_WINSZ = False
 
 if verbose:
     def debug(msg):
@@ -78,7 +70,7 @@ def _readline(fd):
     return reader.readline()
 
 def expectedFailureIfStdinIsTTY(fun):
-    # avoid isatty() for now
+    # avoid isatty()
     try:
         tty.tcgetattr(pty.STDIN_FILENO)
         return unittest.expectedFailure(fun)
@@ -86,22 +78,7 @@ def expectedFailureIfStdinIsTTY(fun):
         pass
     return fun
 
-def expectedFailureOnBSD(fun):
-    PLATFORM = platform.system()
-    if PLATFORM.endswith("BSD") or PLATFORM == "Darwin":
-        return unittest.expectedFailure(fun)
-    return fun
 
-def _get_term_winsz(fd):
-    s = struct.pack("HHHH", 0, 0, 0, 0)
-    return fcntl.ioctl(fd, _TIOCGWINSZ, s)
-
-def _set_term_winsz(fd, winsz):
-    fcntl.ioctl(fd, _TIOCSWINSZ, winsz)
-
-
-# Marginal testing of pty suite. Cannot do extensive 'do or fail' testing
-# because pty code is not too portable.
 # XXX(nnorwitz):  these tests leak fds when there is an error.
 class PtyTest(unittest.TestCase):
     def setUp(self):
@@ -119,14 +96,14 @@ class PtyTest(unittest.TestCase):
         # Save original stdin window size
         self.stdin_rows = None
         self.stdin_cols = None
-        if _HAVE_WINSZ:
+        if tty.HAVE_WINSZ:
             try:
                 stdin_dim = os.get_terminal_size(pty.STDIN_FILENO)
                 self.stdin_rows = stdin_dim.lines
                 self.stdin_cols = stdin_dim.columns
                 old_stdin_winsz = struct.pack("HHHH", self.stdin_rows,
                                               self.stdin_cols, 0, 0)
-                self.addCleanup(_set_term_winsz, pty.STDIN_FILENO, old_stdin_winsz)
+                self.addCleanup(tty.setwinsz, pty.STDIN_FILENO, old_stdin_winsz)
             except OSError:
                 pass
 
@@ -155,16 +132,21 @@ class PtyTest(unittest.TestCase):
         new_stdin_winsz = None
         if self.stdin_rows != None and self.stdin_cols != None:
             try:
+                # Modify pty.STDIN_FILENO window size; we need to
+                # check if pty.openpty() is able to set pty slave
+                # window size accordingly.
                 debug("Setting pty.STDIN_FILENO window size")
-                # Set number of columns and rows to be the
-                # floors of 1/5 of respective original values
-                target_stdin_winsz = struct.pack("HHHH", self.stdin_rows//5,
-                                                 self.stdin_cols//5, 0, 0)
-                _set_term_winsz(pty.STDIN_FILENO, target_stdin_winsz)
+                debug(f"original size: (rows={self.stdin_rows}, cols={self.stdin_cols})")
+                target_stdin_rows = self.stdin_rows + 1
+                target_stdin_cols = self.stdin_cols + 1
+                debug(f"target size: (rows={target_stdin_rows}, cols={target_stdin_cols})")
+                target_stdin_winsz = struct.pack("HHHH", target_stdin_rows,
+                                                 target_stdin_cols, 0, 0)
+                tty.setwinsz(pty.STDIN_FILENO, target_stdin_winsz)
 
                 # Were we able to set the window size
                 # of pty.STDIN_FILENO successfully?
-                new_stdin_winsz = _get_term_winsz(pty.STDIN_FILENO)
+                new_stdin_winsz = tty.getwinsz(pty.STDIN_FILENO)
                 self.assertEqual(new_stdin_winsz, target_stdin_winsz,
                                  "pty.STDIN_FILENO window size unchanged")
             except OSError:
@@ -188,7 +170,7 @@ class PtyTest(unittest.TestCase):
             self.assertEqual(tty.tcgetattr(slave_fd), mode,
                              "openpty() failed to set slave termios")
         if new_stdin_winsz:
-            self.assertEqual(_get_term_winsz(slave_fd), new_stdin_winsz,
+            self.assertEqual(tty.getwinsz(slave_fd), new_stdin_winsz,
                              "openpty() failed to set slave window size")
 
         # Solaris requires reading the fd before anything is returned.
@@ -313,8 +295,8 @@ class PtyTest(unittest.TestCase):
 
         os.close(master_fd)
 
-    @expectedFailureOnBSD
     def test_master_read(self):
+        """Tests pty.spawn() copy loop exit conditions."""
         debug("Calling pty.openpty()")
         master_fd, slave_fd = pty.openpty()
         debug(f"Got master_fd '{master_fd}', slave_fd '{slave_fd}'")
@@ -323,10 +305,13 @@ class PtyTest(unittest.TestCase):
         os.close(slave_fd)
 
         debug("Reading from master_fd")
-        with self.assertRaises(OSError):
-            os.read(master_fd, 1)
+        try:
+            data = os.read(master_fd, 1)
+        except OSError: # Linux
+            data = b""
 
         os.close(master_fd)
+        self.assertEqual(data, b"")
 
 class SmallPtyTests(unittest.TestCase):
     """These tests don't spawn children or hang."""

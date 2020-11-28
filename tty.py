@@ -9,7 +9,7 @@ from fcntl import ioctl
 from struct import pack
 import os
 
-__all__ = ["mode_echo", "mode_raw", "setraw", "setcbreak", "getwinsz", "login"]
+__all__ = ["mode_echo", "mode_raw", "setraw", "setcbreak", "getwinsz", "setwinsz", "login"]
 
 STDIN_FILENO = 0
 STDOUT_FILENO = 1
@@ -28,8 +28,23 @@ try:
     CHECK_WINSZ = TIOCGWINSZ
     CHECK_WINSZ = TIOCSWINSZ
     HAVE_WINSZ = True
+
+    def getwinsz(fd):
+        """Gets window size of tty.
+        If fd is not a descriptor of
+        a tty, then OSError is raised."""
+        s = pack("HHHH", 0, 0, 0, 0)
+        return ioctl(fd, TIOCGWINSZ, s)
+
+    def setwinsz(fd, winsz):
+        """Sets window size of tty.
+        If fd is not a descriptor of
+        a tty, then OSError is raised."""
+        ioctl(fd, TIOCSWINSZ, winsz)
 except NameError:
     HAVE_WINSZ = False
+    getwinsz = None
+    setwinsz = None
 
 def mode_echo(mode, echo=True):
     """Set/unset ECHO."""
@@ -66,20 +81,6 @@ def setcbreak(fd, when=TCSAFLUSH):
     new[CC][VTIME] = 0
     tcsetattr(fd, when, new)
     return mode
-
-def getwinsz(fd):
-    """Gets window size of tty.
-    If fd is not a descriptor of a tty, or if
-    not HAVE_WINSZ, then None is returned."""
-    if HAVE_WINSZ:
-        try:
-            s = pack("HHHH", 0, 0, 0, 0)
-            winsz = ioctl(fd, TIOCGWINSZ, s)
-            return winsz
-        except OSError:
-            pass
-
-    return None
 
 def login(fd):
     """Makes the calling process a session leader; if fd is a
