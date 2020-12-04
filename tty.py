@@ -122,7 +122,6 @@ def login_tty(fd):
 try:
     from termios import TIOCGWINSZ, TIOCSWINSZ
     HAVE_WINSZ = True
-    WINSZ_ERR = None
 
     class winsize:
 
@@ -196,36 +195,8 @@ try:
             return f"(row={self.ws_row}, col={self.ws_col}, xpixel={self.ws_xpixel}, ypixel={self.ws_ypixel})"
 except ImportError:
     HAVE_WINSZ = False
-    WINSZ_ERR = NotImplementedError("termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined")
 
     class winsize:
 
         def __init__(self, row=0, col=0, xpixel=0, ypixel=0, fd=None):
-            raise WINSZ_ERR
-
-        def row(self, num=None):
-            raise WINSZ_ERR
-
-        def col(self, num=None):
-            raise WINSZ_ERR
-
-        def xpixel(self, num=None):
-            raise WINSZ_ERR
-
-        def ypixel(self, num=None):
-            raise WINSZ_ERR
-
-        def getwinsize(self, fd):
-            raise WINSZ_ERR
-
-        def setwinsize(self, fd):
-            raise WINSZ_ERR
-
-        def __eq__(self, obj):
-            raise WINSZ_ERR
-
-        def __repr__(self):
-            raise WINSZ_ERR
-
-        def __str__(self):
-            raise WINSZ_ERR
+            raise NotImplementedError("termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined")
