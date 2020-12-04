@@ -18,7 +18,6 @@ import socket
 import io # readline
 import unittest
 
-import struct
 import tty
 import fcntl
 import warnings
@@ -94,16 +93,14 @@ class PtyTest(unittest.TestCase):
         signal.alarm(10)
 
         # Save original stdin window size
-        self.stdin_rows = None
-        self.stdin_cols = None
+        self.old_stdin_winsz = None
         if tty.HAVE_WINSZ:
             try:
-                stdin_dim = os.get_terminal_size(pty.STDIN_FILENO)
-                self.stdin_rows = stdin_dim.lines
-                self.stdin_cols = stdin_dim.columns
-                old_stdin_winsz = struct.pack("HHHH", self.stdin_rows,
-                                              self.stdin_cols, 0, 0)
-                self.addCleanup(tty.setwinsz, pty.STDIN_FILENO, old_stdin_winsz)
+                self.old_stdin_winsz = tty.winsize(fd=pty.STDIN_FILENO)
+
+                # Reset stdin window size as a part of the cleanup process
+                self.addCleanup(tty.winsize.setwinsize, self.old_stdin_winsz,
+                                pty.STDIN_FILENO)
             except OSError:
                 pass
 
@@ -130,28 +127,28 @@ class PtyTest(unittest.TestCase):
             mode = None
 
         new_stdin_winsz = None
-        if self.stdin_rows != None and self.stdin_cols != None:
+        if self.old_stdin_winsz != None:
             try:
                 # Modify pty.STDIN_FILENO window size; we need to
                 # check if pty.openpty() is able to set pty slave
                 # window size accordingly.
                 debug("Setting pty.STDIN_FILENO window size")
-                debug(f"original size: (rows={self.stdin_rows}, cols={self.stdin_cols})")
-                target_stdin_rows = self.stdin_rows + 1
-                target_stdin_cols = self.stdin_cols + 1
-                debug(f"target size: (rows={target_stdin_rows}, cols={target_stdin_cols})")
-                target_stdin_winsz = struct.pack("HHHH", target_stdin_rows,
-                                                 target_stdin_cols, 0, 0)
-                tty.setwinsz(pty.STDIN_FILENO, target_stdin_winsz)
+                debug(f"original winsize: {self.old_stdin_winsz}")
+                target_stdin_winsz = tty.winsize()
+                target_stdin_winsz.row(self.old_stdin_winsz.row() + 1)
+                target_stdin_winsz.col(self.old_stdin_winsz.col() + 1)
+                target_stdin_winsz.xpixel(self.old_stdin_winsz.xpixel() + 1)
+                target_stdin_winsz.ypixel(self.old_stdin_winsz.ypixel() + 1)
+                debug(f"target winsize: {target_stdin_winsz}")
+                target_stdin_winsz.setwinsize(pty.STDIN_FILENO)
 
-                # Were we able to set the window size
-                # of pty.STDIN_FILENO successfully?
-                new_stdin_winsz = tty.getwinsz(pty.STDIN_FILENO)
+                # Were we able to set the window size of
+                # pty.STDIN_FILENO successfully?
+                new_stdin_winsz = tty.winsize(fd=pty.STDIN_FILENO)
                 self.assertEqual(new_stdin_winsz, target_stdin_winsz,
                                  "pty.STDIN_FILENO window size unchanged")
             except OSError:
                 warnings.warn("Failed to set pty.STDIN_FILENO window size")
-                pass
 
         try:
             debug("Calling pty.openpty()")
@@ -170,7 +167,7 @@ class PtyTest(unittest.TestCase):
             self.assertEqual(tty.tcgetattr(slave_fd), mode,
                              "openpty() failed to set slave termios")
         if new_stdin_winsz:
-            self.assertEqual(tty.getwinsz(slave_fd), new_stdin_winsz,
+            self.assertEqual(tty.winsize(fd=slave_fd), new_stdin_winsz,
                              "openpty() failed to set slave window size")
 
         # Solaris requires reading the fd before anything is returned.

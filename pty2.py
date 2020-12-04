@@ -64,7 +64,7 @@ def openpty(mode=None, winsz=None):
     if mode:
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, mode)
     if tty.HAVE_WINSZ and winsz:
-        tty.setwinsz(slave_fd, winsz)
+        tty.setwinsize(slave_fd, winsz)
 
     return master_fd, slave_fd
 
@@ -136,7 +136,7 @@ def _pty_setup(slave_echo):
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, _mode)
     else:
         if tty.HAVE_WINSZ:
-            winsz = tty.getwinsz(STDIN_FILENO)
+            winsz = tty.getwinsize(STDIN_FILENO)
 
         _mode = list(mode)
         tty.mode_echo(_mode, slave_echo)
@@ -157,7 +157,7 @@ def _winchset(slave_fd, saved_mask, handle_winch):
             """SIGWINCH handler."""
             _sigblock()
             new_slave_fd = os.open(slave_path, os.O_RDWR)
-            tty.setwinsz(new_slave_fd, tty.getwinsz(STDIN_FILENO))
+            tty.setwinsize(new_slave_fd, tty.getwinsize(STDIN_FILENO))
             os.close(new_slave_fd)
             _sigreset(saved_mask)
 
@@ -215,7 +215,7 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_win
     _sigblock() # Reset during select() in _copy.
 
     master_fd, slave_fd, mode, winsz = _pty_setup(slave_echo)
-    handle_winch = handle_winch and winsz and HAVE_WINCH
+    handle_winch = handle_winch and (winsz != None) and HAVE_WINCH
     bkh = _winchset(slave_fd, saved_mask, handle_winch)
 
     pid = os.fork()
