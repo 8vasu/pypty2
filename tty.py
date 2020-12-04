@@ -33,7 +33,7 @@ def mkecho(mode, echo=True):
         mode[LFLAG] &= ~ECHO
 
 def mkraw(mode):
-    """raw mode termios."""
+    """raw mode termios"""
     # Clear all POSIX.1-2017 input mode flags.
     mode[IFLAG] &= ~(IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP |
                      INLCR | IGNCR | ICRNL | IXON | IXANY | IXOFF)
@@ -61,7 +61,7 @@ def mkraw(mode):
     mode[CC][VTIME] = 0
 
 def mkcbreak(mode):
-    """cbreak mode termios."""
+    """cbreak mode termios"""
     # Do not map CR to NL on input.
     mode[IFLAG] &= ~(ICRNL)
 

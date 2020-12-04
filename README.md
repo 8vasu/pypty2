@@ -4,7 +4,7 @@ Revised cpython pty library meant to be a drop-in replacement for Lib/pty.py
 
 Improvements in pty2:
 
-1. Tested on Linux, FreeBSD, OpenBSD, and NetBSD. Fixes hang on FreeBSD. See bpo-26228.
+1. Tested on Linux, FreeBSD, OpenBSD, and NetBSD. Fixes hang on FreeBSD. See [bpo-26228](https://bugs.python.org/issue26228).
 2. Like openpty(3) and forkpty(3), pty2.openpty() and pty2.fork() accept slave termios
    and slave winsize as arguments.
 3. pty2.spawn() appropriately sets current stdin termios, slave termios, and slave winsize.
@@ -20,8 +20,8 @@ Improvements in pty2:
          ansi-term window can be resized later; this also leads to stdin's terminal being resized.
 
     In all of the above scenarios, pty.spawn() does not update the slave window size accordingly; this
-    makes program output hard to visually parse. pty2.spawn() does not have this limitation. See bpo-41494,
-    bpo-41541.
+    makes program output hard to visually parse. pty2.spawn() does not have this limitation. See [bpo-41494](https://bugs.python.org/issue41494),
+    [bpo-41541](https://bugs.python.org/issue41541).
 5. Blocks signals when necessary. Read CHANGES for details.
 6. Improves fallback code in pty.fork() -> pty2.fork() by using tty.login(), which uses
    TIOCSCTTY if possible. tty.login() is reused in pty2.spawn().
