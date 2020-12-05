@@ -31,34 +31,41 @@ winsize Objects
 .. class:: winsize(row=0, col=0, xpixel=0, ypixel=0, fd=None)
 
    Create a :class:`winsize` object, which represents a struct winsize; the
-   field names are *ws_row*, *ws_col*, *ws_xpixel*, and *ws_ypixel*. If *fd*
+   attributes are *ws_row*, *ws_col*, *ws_xpixel*, and *ws_ypixel*. If *fd*
    is not :const:`None`, then get window size of tty of which *fd* is a file
-   descriptor. If *fd* is :const:`None`, then create the :class:`winsize` object
-   based on the *row*, *col*, *xpixel*, and *ypixel* values provided.
+   descriptor. If *fd* is :const:`None`, then set the attributes to be the
+   floors of the absolute values of *row*, *col*, *xpixel*, and *ypixel*. To
+   update or access the attributes of a :class:`winsize` object, use the
+   following methods; they make sure that the attributes be nonnegative
+   integers.
 
 
 .. method:: winsize.row(num=None)
 
-   Set *ws_row* to *num* if *num* is not :const:`None`; return *ws_row*
-   otherwise. The default value of *num* is :const:`None`.
+   Set *ws_row* to the floor of the absolute value of *num* if *num* is not
+   :const:`None`; return *ws_row* otherwise. The default value of *num* is
+   :const:`None`.
 
 
 .. method:: winsize.col(num=None)
 
-   Set *ws_col* to *num* if *num* is not :const:`None`; return *ws_col*
-   otherwise. The default value of *num* is :const:`None`.
+   Set *ws_col* to the floor of the absolute value of *num* if *num* is not
+   :const:`None`; return *ws_col* otherwise. The default value of *num* is
+   :const:`None`.
 
 
 .. method:: winsize.xpixel(num=None)
 
-   Set *ws_xpixel* to *num* if *num* is not :const:`None`; return *ws_xpixel*
-   otherwise. The default value of *num* is :const:`None`.
+   Set *ws_xpixel* to the floor of the absolute value of *num* if *num* is not
+   :const:`None`; return *ws_xpixel* otherwise. The default value of *num* is
+   :const:`None`.
 
 
 .. method:: winsize.ypixel(num=None)
 
-   Set *ws_ypixel* to *num* if *num* is not :const:`None`; return *ws_ypixel*
-   otherwise. The default value of *num* is :const:`None`.
+   Set *ws_ypixel* to the floor of the absolute value of *num* if *num* is not
+   :const:`None`; return *ws_ypixel* otherwise. The default value of *num* is
+   :const:`None`.
 
 
 .. method:: winsize.getwinsize(fd)
