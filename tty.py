@@ -94,7 +94,8 @@ def setcbreak(fd, when=TCSAFLUSH):
     return mode
 
 def login_tty(fd):
-    """Makes the calling process a session leader; the tty of which
+    """Prepare a terminal for a new login session.
+    Makes the calling process a session leader; the tty of which
     fd is a file descriptor becomes the controlling tty, the stdin,
     the stdout, and the stderr of the calling process. Closes fd."""
     # Establish a new session.
@@ -116,7 +117,7 @@ def login_tty(fd):
     os.dup2(fd, STDIN_FILENO)
     os.dup2(fd, STDOUT_FILENO)
     os.dup2(fd, STDERR_FILENO)
-    if fd > STDERR_FILENO:
+    if fd != STDIN_FILENO and fd != STDOUT_FILENO and fd != STDERR_FILENO:
         os.close(fd)
 
 try:

@@ -116,9 +116,9 @@ Miscellaneous Functions
 
 .. function:: login_tty(fd)
 
-   Makes the calling process a session leader; if *fd* is a descriptor of a
-   tty, then that tty becomes the standard input, the standard output, the
-   standard error, and the controlling tty of the calling process. Closes *fd*.
+   Prepare the tty of which *fd* is a file descriptor for a new login session:
+   make the calling process a session leader; make the tty the controlling tty,
+   the stdin, the stdout, and the stderr of the calling process; close *fd*.
 
 
 .. seealso::
