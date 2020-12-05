@@ -105,11 +105,12 @@ def login_tty(fd):
     try:
         ioctl(fd, TIOCSCTTY)
     except (NameError, OSError):
-        # Fallback method (archaic). From Advanced Programming in the UNIX
-        # Environment (2nd edition, 2005), Section 9.6 - Controlling Terminal:
+        # Fallback method; from Advanced Programming in the UNIX(R)
+        # Environment, Third edition, 2013, Section 9.6 - Controlling Terminal:
         # "Systems derived from UNIX System V allocate the controlling
         # terminal for a session when the session leader opens the first
-        # terminal device that is not already associated with a session."
+        # terminal device that is not already associated with a session, as
+        # long as the call to open does not specify the O_NOCTTY flag."
         tmp_fd = os.open(os.ttyname(fd), os.O_RDWR)
         os.close(tmp_fd)
 
