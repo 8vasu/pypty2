@@ -99,7 +99,7 @@ class PtyTest(unittest.TestCase):
                 self.old_stdin_winsz = tty.winsize(fd=pty.STDIN_FILENO)
 
                 # Reset stdin window size as a part of the cleanup process
-                self.addCleanup(tty.winsize.setwinsize, self.old_stdin_winsz,
+                self.addCleanup(tty.winsize.tcsetwinsize, self.old_stdin_winsz,
                                 pty.STDIN_FILENO)
             except OSError:
                 pass
@@ -135,12 +135,12 @@ class PtyTest(unittest.TestCase):
                 debug("Setting pty.STDIN_FILENO window size")
                 debug(f"original winsize: {self.old_stdin_winsz}")
                 target_stdin_winsz = tty.winsize()
-                target_stdin_winsz.row(self.old_stdin_winsz.row() + 1)
-                target_stdin_winsz.col(self.old_stdin_winsz.col() + 1)
-                target_stdin_winsz.xpixel(self.old_stdin_winsz.xpixel() + 1)
-                target_stdin_winsz.ypixel(self.old_stdin_winsz.ypixel() + 1)
+                target_stdin_winsz.ws_row = self.old_stdin_winsz.ws_row + 1
+                target_stdin_winsz.ws_col = self.old_stdin_winsz.ws_col + 1
+                target_stdin_winsz.ws_xpixel = self.old_stdin_winsz.ws_xpixel + 1
+                target_stdin_winsz.ws_ypixel = self.old_stdin_winsz.ws_ypixel + 1
                 debug(f"target winsize: {target_stdin_winsz}")
-                target_stdin_winsz.setwinsize(pty.STDIN_FILENO)
+                target_stdin_winsz.tcsetwinsize(pty.STDIN_FILENO)
 
                 # Were we able to set the window size of
                 # pty.STDIN_FILENO successfully?

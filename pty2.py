@@ -23,9 +23,9 @@ import signal
 
 __all__ = ["openpty", "fork", "spawn"]
 
-STDIN_FILENO = 0
-STDOUT_FILENO = 1
-STDERR_FILENO = 2
+STDIN_FILENO = tty.STDIN_FILENO
+STDOUT_FILENO = tty.STDOUT_FILENO
+STDERR_FILENO = tty.STDERR_FILENO
 
 CHILD = 0
 

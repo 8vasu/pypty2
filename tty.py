@@ -7,7 +7,6 @@
 from termios import *
 from fcntl import ioctl
 from struct import pack, unpack
-from collections import namedtuple
 import os
 
 __all__ = ["mkecho", "mkraw", "mkcbreak", "setraw", "setcbreak", "login_tty", "HAVE_WINSZ", "winsize"]
@@ -133,56 +132,18 @@ try:
             file descriptor. If fd is None, creates the winsize object
             based on the row, col, xpixel, and ypixel values provided."""
             if fd != None:
-                self.getwinsize(fd)
+                self.tcgetwinsize(fd)
             else:
-                self.ws_row = int(abs(row))
-                self.ws_col = int(abs(col))
-                self.ws_xpixel = int(abs(xpixel))
-                self.ws_ypixel = int(abs(ypixel))
+                self.ws_row = row
+                self.ws_col = col
+                self.ws_xpixel = xpixel
+                self.ws_ypixel = ypixel
 
-        def row(self, num=None):
-            """Sets ws_row if num is not None; returns ws_row otherwise."""
-            if num != None:
-                self.ws_row = int(abs(num))
+        def __setattr__(self, name, value):
+            if not isinstance(value, int) or value < 0:
+                raise TypeError("expected nonnegative integer")
             else:
-                return self.ws_row
-
-        def col(self, num=None):
-            """Sets ws_col if num is not None; returns ws_col otherwise."""
-            if num != None:
-                self.ws_col = int(abs(num))
-            else:
-                return self.ws_col
-
-        def xpixel(self, num=None):
-            """Sets ws_xpixel if num is not None; returns ws_xpixel otherwise."""
-            if num != None:
-                self.ws_xpixel = int(abs(num))
-            else:
-                return self.ws_xpixel
-
-        def ypixel(self, num=None):
-            """Sets ws_ypixel if num is not None; returns ws_ypixel otherwise."""
-            if num != None:
-                self.ws_ypixel = int(abs(num))
-            else:
-                return self.ws_ypixel
-
-        def getwinsize(self, fd):
-            """Gets window size of tty of which fd is a file descriptor."""
-            # If fd is not a file descriptor of a tty, then OSError is raised.
-            s = pack("HHHH", 0, 0, 0, 0)
-            w = unpack("HHHH", ioctl(fd, TIOCGWINSZ, s))
-            self.ws_row = w[0]
-            self.ws_col = w[1]
-            self.ws_xpixel = w[2]
-            self.ws_ypixel = w[3]
-
-        def setwinsize(self, fd):
-            """Sets window size of tty of which fd is a file descriptor."""
-            # If fd is not a file descriptor of a tty, then OSError is raised.
-            ioctl(fd, TIOCSWINSZ, pack("HHHH", self.ws_row, self.ws_col,
-                                       self.ws_xpixel, self.ws_ypixel))
+                super().__setattr__(name, value)
 
         def __eq__(self, obj):
             if isinstance(obj, self.__class__):
@@ -195,10 +156,23 @@ try:
 
         def __str__(self):
             return f"(row={self.ws_row}, col={self.ws_col}, xpixel={self.ws_xpixel}, ypixel={self.ws_ypixel})"
+
+        def tcgetwinsize(self, fd):
+            """Gets window size of tty of which fd is a file descriptor."""
+            # If fd is not a file descriptor of a tty, then OSError is raised.
+            s = pack("HHHH", 0, 0, 0, 0)
+            w = unpack("HHHH", ioctl(fd, TIOCGWINSZ, s))
+            self.ws_row, self.ws_col, self.ws_xpixel, self.ws_ypixel = w
+
+        def tcsetwinsize(self, fd):
+            """Sets window size of tty of which fd is a file descriptor."""
+            # If fd is not a file descriptor of a tty, then OSError is raised.
+            ioctl(fd, TIOCSWINSZ, pack("HHHH", self.ws_row, self.ws_col,
+                                       self.ws_xpixel, self.ws_ypixel))
 except ImportError:
     HAVE_WINSZ = False
 
     class winsize:
 
-        def __init__(self, row=0, col=0, xpixel=0, ypixel=0, fd=None):
+        def __init__(self, row=0, col=0, xpixel=0, ypixel=0):
             raise NotImplementedError("termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined")

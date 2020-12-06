@@ -31,50 +31,20 @@ winsize Objects
 .. class:: winsize(row=0, col=0, xpixel=0, ypixel=0, fd=None)
 
    Create a :class:`winsize` object, which represents a struct winsize; the
-   attributes are *ws_row*, *ws_col*, *ws_xpixel*, and *ws_ypixel*. If *fd*
-   is not :const:`None`, then get window size of tty of which *fd* is a file
-   descriptor. If *fd* is :const:`None`, then set the attributes to be the
-   floors of the absolute values of *row*, *col*, *xpixel*, and *ypixel*. To
-   update or access the attributes of a :class:`winsize` object, use the
-   following methods; they make sure that the attributes be nonnegative
-   integers.
+   attributes are *ws_row*, *ws_col*, *ws_xpixel*, and *ws_ypixel*; these are
+   all nonnegative integers. If *fd* is not :const:`None`, then get window
+   size of tty of which *fd* is a file descriptor. If *fd* is :const:`None`,
+   then set the attributes based on the values of *row*, *col*, *xpixel*, and
+   *ypixel*.
 
 
-.. method:: winsize.row(num=None)
-
-   Set *ws_row* to the floor of the absolute value of *num* if *num* is not
-   :const:`None`; return *ws_row* otherwise. The default value of *num* is
-   :const:`None`.
-
-
-.. method:: winsize.col(num=None)
-
-   Set *ws_col* to the floor of the absolute value of *num* if *num* is not
-   :const:`None`; return *ws_col* otherwise. The default value of *num* is
-   :const:`None`.
-
-
-.. method:: winsize.xpixel(num=None)
-
-   Set *ws_xpixel* to the floor of the absolute value of *num* if *num* is not
-   :const:`None`; return *ws_xpixel* otherwise. The default value of *num* is
-   :const:`None`.
-
-
-.. method:: winsize.ypixel(num=None)
-
-   Set *ws_ypixel* to the floor of the absolute value of *num* if *num* is not
-   :const:`None`; return *ws_ypixel* otherwise. The default value of *num* is
-   :const:`None`.
-
-
-.. method:: winsize.getwinsize(fd)
+.. method:: winsize.tcgetwinsize(fd)
 
    Get window size of tty of which *fd* is a file descriptor. If *fd* is not a
    descriptor of a tty, then :exc:`OSError` is raised.
 
 
-.. method:: winsize.setwinsize(fd)
+.. method:: winsize.tcsetwinsize(fd)
 
    Set window size of tty of which *fd* is a file descriptor. If *fd* is not a
    descriptor of a tty, then :exc:`OSError` is raised.
