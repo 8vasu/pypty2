@@ -5,11 +5,7 @@ from test.support.import_helper import import_module
 import_module('termios')
 
 import errno
-try:
-    import pty2 as pty
-except ModuleNotFoundError:
-    import pty
-#import pty
+import pty
 import os
 import sys
 import select
@@ -130,7 +126,7 @@ class PtyTest(unittest.TestCase):
         # master_open() is not being used anymore.
         pass
 
-    #@expectedFailureIfStdinIsTTY
+    @expectedFailureIfStdinIsTTY
     def test_openpty(self):
         try:
             mode = tty.tcgetattr(pty.STDIN_FILENO)
@@ -323,7 +319,7 @@ class PtyTest(unittest.TestCase):
         os.close(master_fd)
         self.assertEqual(data, b"")
 
-    #@expectedFailureIfStdinIsTTYAndHAVE_WINCH
+    @expectedFailureIfStdinIsTTYAndHAVE_WINCH
     def test_winch(self):
         """Test pty.spawn()'s terminal window
         resizing AFTER creation of the pty pair."""

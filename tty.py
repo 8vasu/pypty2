@@ -128,6 +128,14 @@ try:
         def __str__(self):
             return f"(row={self.ws_row}, col={self.ws_col}, xpixel={self.ws_xpixel}, ypixel={self.ws_ypixel})"
 
+        # tcgetwinsize() and tcsetwinsize() are expected to be included in
+        # IEEE Std 1003.1 ("POSIX.1") issue 8 as a part of termios.h;
+        # please see: https://www.austingroupbugs.net/view.php?id=1151#c3856
+        #
+        # If and when that happens in the future, termios.tcgetwinsize() and
+        # termios.tcsetwinsize() should be implemented, and the following
+        # methods should be updated to use them instead of relying upon
+        # ioctl()+TIOCGWINSZ/TIOCSWINSZ, pack(), and unpack().
         def tcgetwinsize(self, fd):
             """Gets window size of tty of which fd is a file descriptor."""
             s = pack("HHHH", 0, 0, 0, 0)
