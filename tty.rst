@@ -1,9 +1,9 @@
-:mod:`tty` --- Common tty operations
-====================================
+:mod:`tty` --- Termios module extensions
+========================================
 
 .. module:: tty
    :platform: Unix
-   :synopsis: Utility functions that perform common tty operations.
+   :synopsis: Termios module extensions
 
 .. moduleauthor:: Steen Lumholt
 .. sectionauthor:: Moshe Zadka <moshez@zadka.site.co.il>
@@ -13,8 +13,8 @@
 
 --------------
 
-The :mod:`tty` module defines various functions that perform common tty
-operations.
+The :mod:`tty` module extends the termios module by defining utility functions
+and classes.
 
 Because it requires the :mod:`termios` module, it will work only on Unix.
 
@@ -40,33 +40,37 @@ winsize Objects
 
 .. method:: winsize.tcgetwinsize(fd)
 
-   Get window size of tty of which *fd* is a file descriptor. If *fd* is not a
-   descriptor of a tty, then :exc:`OSError` is raised.
+   Get window size of tty of which *fd* is a file descriptor.
 
 
 .. method:: winsize.tcsetwinsize(fd)
 
-   Set window size of tty of which *fd* is a file descriptor. If *fd* is not a
-   descriptor of a tty, then :exc:`OSError` is raised.
+   Set window size of tty of which *fd* is a file descriptor.
 
 
-Termios Functions
------------------
+.. data:: HAVE_WINCH
 
-.. function:: mkecho(mode, echo=True)
+   :const:`True` if :const:`HAVE_WINSZ` is :const:`True` and
+   :const:`signal.SIGWINCH` is defined; :const:`False` otherwise.
+
+
+Functions
+---------
+
+.. function:: cfmakeecho(mode, echo=True)
 
    Set ECHO in the tty attribute list *mode*, which is a list like the one
    returned by :func:`termios.tcgetattr`, if *echo* is :const:`True` or is
    omitted. Unset ECHO if *echo* is :const:`False`.
 
 
-.. function:: mkraw(mode)
+.. function:: cfmakeraw(mode)
 
    Convert the tty attribute list *mode*, which is a list like the one returned
    by :func:`termios.tcgetattr`, to that of a tty in raw mode.
 
 
-.. function:: mkcbreak(mode)
+.. function:: cfmakecbreak(mode)
 
    Convert the tty attribute list *mode*, which is a list like the one returned
    by :func:`termios.tcgetattr`, to that of a tty in cbreak mode.
@@ -88,18 +92,7 @@ Termios Functions
    is saved before setting *fd* to raw mode; this value is returned.
 
 
-Miscellaneous Functions
------------------------
-
-.. function:: login_tty(fd)
-
-   Prepare the tty of which *fd* is a file descriptor for a new login session:
-   make the calling process a session leader; make the tty the controlling tty,
-   the stdin, the stdout, and the stderr of the calling process; close *fd*.
-
-
 .. seealso::
 
    Module :mod:`termios`
       Low-level terminal control interface.
-

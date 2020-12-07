@@ -39,6 +39,13 @@ The :mod:`pty` module defines the following functions:
    ``(master, slave)``, for the master and the slave end, respectively.
 
 
+.. function:: login_tty(fd)
+
+   Prepare the tty of which *fd* is a file descriptor for a new login session:
+   make the calling process a session leader; make the tty the controlling tty,
+   the stdin, the stdout, and the stderr of the calling process; close *fd*.
+
+
 .. function:: spawn(argv[, master_read[, stdin_read]])
 
    Spawn a process, and connect its controlling terminal with the current

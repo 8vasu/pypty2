@@ -77,14 +77,9 @@ def expectedFailureIfStdinIsTTY(fun):
         pass
     return fun
 
-if tty.HAVE_WINSZ and hasattr(signal, "SIGWINCH"):
-    HAVE_WINCH = True
-else:
-    HAVE_WINCH = False
-
-def expectedFailureIfStdinIsTTYAndHAVEWINCH(fun):
+def expectedFailureIfStdinIsTTYAndHAVE_WINCH(fun):
     # avoid isatty()
-    if HAVE_WINCH:
+    if tty.HAVE_WINCH:
         try:
             tty.tcgetattr(pty.STDIN_FILENO)
             return unittest.expectedFailure(fun)
@@ -115,10 +110,10 @@ class PtyTest(unittest.TestCase):
                 # Reset stdin window size as a part of the cleanup process
                 self.addCleanup(tty.winsize.tcsetwinsize, self.old_stdin_winsz,
                                 pty.STDIN_FILENO)
-            except OSError:
+            except tty.error:
                 pass
 
-        if HAVE_WINCH:
+        if tty.HAVE_WINCH:
             old_winch = signal.getsignal(signal.SIGWINCH)
             self.addCleanup(signal.signal, signal.SIGWINCH, old_winch)
 
@@ -165,7 +160,7 @@ class PtyTest(unittest.TestCase):
                 new_stdin_winsz = tty.winsize(fd=pty.STDIN_FILENO)
                 self.assertEqual(new_stdin_winsz, target_stdin_winsz,
                                  "pty.STDIN_FILENO window size unchanged")
-            except OSError:
+            except tty.error:
                 warnings.warn("failed to set pty.STDIN_FILENO window size")
 
         try:
@@ -328,13 +323,13 @@ class PtyTest(unittest.TestCase):
         os.close(master_fd)
         self.assertEqual(data, b"")
 
-    #@expectedFailureIfStdinIsTTYAndHAVEWINCH
+    #@expectedFailureIfStdinIsTTYAndHAVE_WINCH
     def test_winch(self):
         """Test pty.spawn()'s terminal window
         resizing AFTER creation of the pty pair."""
-        if (self.old_stdin_winsz != None) and HAVE_WINCH:
+        if (self.old_stdin_winsz != None) and tty.HAVE_WINCH:
             # change this to True to make the test
-            # pass when stdin is a tty and HAVE_WINCH
+            # pass when stdin is a tty and tty.HAVE_WINCH
             handle_winch = False
 
             debug("calling pty.openpty()")
@@ -381,7 +376,7 @@ class PtyTest(unittest.TestCase):
                 new_stdin_winsz = tty.winsize(fd=pty.STDIN_FILENO)
                 self.assertEqual(new_stdin_winsz, target_stdin_winsz,
                                  "pty.STDIN_FILENO window size unchanged")
-            except OSError:
+            except tty.error:
                 warnings.warn("failed to set pty.STDIN_FILENO window size")
 
             if new_stdin_winsz:

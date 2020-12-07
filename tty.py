@@ -1,19 +1,18 @@
-"""Terminal utilities."""
+"""Termios module extensions"""
 
 # Author: Steen Lumholt
 
-# v2.0: Soumendra Ganguly <soumendra@tamu.edu>
+# Additions: Soumendra Ganguly <soumendra@tamu.edu>
 
 from termios import *
 from fcntl import ioctl
 from struct import pack, unpack
+import errno
 import os
+import signal
 
-__all__ = ["mkecho", "mkraw", "mkcbreak", "setraw", "setcbreak", "login_tty", "HAVE_WINSZ", "winsize"]
-
-STDIN_FILENO = 0
-STDOUT_FILENO = 1
-STDERR_FILENO = 2
+__all__ = ["cfmakeecho", "cfmakeraw", "cfmakecbreak", "setraw", "setcbreak",
+           "HAVE_WINSZ", "winsize", "HAVE_WINCH"]
 
 # Indices for termios list.
 IFLAG = 0
@@ -24,14 +23,14 @@ ISPEED = 4
 OSPEED = 5
 CC = 6
 
-def mkecho(mode, echo=True):
+def cfmakeecho(mode, echo=True):
     """Set/unset ECHO."""
     if echo:
         mode[LFLAG] |= ECHO
     else:
         mode[LFLAG] &= ~ECHO
 
-def mkraw(mode):
+def cfmakeraw(mode):
     """raw mode termios"""
     # Clear all POSIX.1-2017 input mode flags.
     mode[IFLAG] &= ~(IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP |
@@ -59,7 +58,7 @@ def mkraw(mode):
     mode[CC][VMIN] = 1
     mode[CC][VTIME] = 0
 
-def mkcbreak(mode):
+def cfmakecbreak(mode):
     """cbreak mode termios"""
     # Do not map CR to NL on input.
     mode[IFLAG] &= ~(ICRNL)
@@ -79,7 +78,7 @@ def setraw(fd, when=TCSAFLUSH):
     Returns original termios."""
     mode = tcgetattr(fd)
     new = list(mode)
-    mkraw(new)
+    cfmakeraw(new)
     tcsetattr(fd, when, new)
     return mode
 
@@ -88,37 +87,9 @@ def setcbreak(fd, when=TCSAFLUSH):
     Returns original termios."""
     mode = tcgetattr(fd)
     new = list(mode)
-    mkcbreak(new)
+    cfmakecbreak(new)
     tcsetattr(fd, when, new)
     return mode
-
-def login_tty(fd):
-    """Prepare a terminal for a new login session.
-    Makes the calling process a session leader; the tty of which
-    fd is a file descriptor becomes the controlling tty, the stdin,
-    the stdout, and the stderr of the calling process. Closes fd."""
-    # Establish a new session.
-    os.setsid()
-
-    # The tty becomes the controlling terminal.
-    try:
-        ioctl(fd, TIOCSCTTY)
-    except (NameError, OSError):
-        # Fallback method; from Advanced Programming in the UNIX(R)
-        # Environment, Third edition, 2013, Section 9.6 - Controlling Terminal:
-        # "Systems derived from UNIX System V allocate the controlling
-        # terminal for a session when the session leader opens the first
-        # terminal device that is not already associated with a session, as
-        # long as the call to open does not specify the O_NOCTTY flag."
-        tmp_fd = os.open(os.ttyname(fd), os.O_RDWR)
-        os.close(tmp_fd)
-
-    # The tty becomes stdin/stdout/stderr.
-    os.dup2(fd, STDIN_FILENO)
-    os.dup2(fd, STDOUT_FILENO)
-    os.dup2(fd, STDERR_FILENO)
-    if fd != STDIN_FILENO and fd != STDOUT_FILENO and fd != STDERR_FILENO:
-        os.close(fd)
 
 try:
     from termios import TIOCGWINSZ, TIOCSWINSZ
@@ -159,16 +130,20 @@ try:
 
         def tcgetwinsize(self, fd):
             """Gets window size of tty of which fd is a file descriptor."""
-            # If fd is not a file descriptor of a tty, then OSError is raised.
             s = pack("HHHH", 0, 0, 0, 0)
-            w = unpack("HHHH", ioctl(fd, TIOCGWINSZ, s))
+            try:
+                w = unpack("HHHH", ioctl(fd, TIOCGWINSZ, s))
+            except OSError as e:
+                raise error(e.errno, os.strerror(e.errno)) from e # termios.error
             self.ws_row, self.ws_col, self.ws_xpixel, self.ws_ypixel = w
 
         def tcsetwinsize(self, fd):
             """Sets window size of tty of which fd is a file descriptor."""
-            # If fd is not a file descriptor of a tty, then OSError is raised.
-            ioctl(fd, TIOCSWINSZ, pack("HHHH", self.ws_row, self.ws_col,
-                                       self.ws_xpixel, self.ws_ypixel))
+            try:
+                ioctl(fd, TIOCSWINSZ, pack("HHHH", self.ws_row, self.ws_col,
+                                           self.ws_xpixel, self.ws_ypixel))
+            except OSError as e:
+                raise error(e.errno, os.strerror(e.errno)) from e # termios.error
 except ImportError:
     HAVE_WINSZ = False
 
@@ -176,3 +151,8 @@ except ImportError:
 
         def __init__(self, row=0, col=0, xpixel=0, ypixel=0):
             raise NotImplementedError("termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined")
+
+if HAVE_WINSZ and hasattr(signal, "SIGWINCH"):
+    HAVE_WINCH = True
+else:
+    HAVE_WINCH = False
