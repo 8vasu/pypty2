@@ -21,7 +21,7 @@ import sys
 import tty
 import signal
 
-__all__ = ["openpty", "forkpty", "login_tty", "spawn"]
+__all__ = ["openpty", "forkpty", "spawn"]
 
 STDIN_FILENO = 0
 STDOUT_FILENO = 1
@@ -39,7 +39,7 @@ if tty.HAVE_WINSZ:
     except AttributeError:
         pass
 
-def login_tty(fd):
+def login_tty(fd): # move to posixmodule.c
     """Prepare a terminal for a new login session.
     Makes the calling process a session leader; the tty of which
     fd is a file descriptor becomes the controlling tty, the stdin,
@@ -76,35 +76,35 @@ def openpty(name=False, mode=None, winsz=None):
     if mode:
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, mode)
     if tty.HAVE_WINSZ and winsz:
-        tty.setwinsize(slave_fd, winsz)
+        tty.tcsetwinsize(slave_fd, winsz)
 
     if name:
         return master_fd, slave_fd, os.ttyname(slave_fd)
     else:
         return master_fd, slave_fd
 
-def forkpty(name=False, mode=None, winsz=None):
+def forkpty(mode=None, winsz=None):
     """forkpty() -> (pid, master_fd)
     Fork and make the child a session leader with a controlling terminal."""
     try:
         pid, master_fd = os.forkpty()
-    except (AttributeError, OSError):
+    except (AttributeError, OSError): # move to posixmodule.c
         master_fd, slave_fd = openpty()
         pid = os.fork()
         if pid == CHILD:
             os.close(master_fd)
-            login_tty(slave_fd)
+            os.login_tty(slave_fd)
         else:
             os.close(slave_fd)
 
     if pid == CHILD:
-        # os.forkpty()/login_tty() makes sure that the
+        # os.forkpty()/os.login_tty() makes sure that the
         # slave end of the pty becomes the stdin of the
         # child; this is usually done via a dup2() call
         if mode:
             tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
         if tty.HAVE_WINSZ and winsz:
-            tty.setwinsize(STDIN_FILENO, winsz)
+            tty.tcsetwinsize(STDIN_FILENO, winsz)
 
     return pid, master_fd
 
@@ -232,7 +232,7 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_win
     pid = os.fork()
     if pid == CHILD:
         os.close(master_fd)
-        login_tty(slave_fd)
+        os.login_tty(slave_fd)
         _sigreset(saved_mask)
         os.execlp(argv[0], *argv)
 
