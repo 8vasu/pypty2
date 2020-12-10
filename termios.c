@@ -400,7 +400,7 @@ termios_tcsetwinsize_impl(PyObject *module, int fd, PyObject *winsz)
     Py_RETURN_NONE;
 #else
     PyErr_SetString(PyExc_NotImplementedError,
-		    "termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined");
+                    "termios.TIOCGWINSZ and/or termios.TIOCSWINSZ undefined");
     return NULL;
 #endif /* defined(TIOCGWINSZ) && defined(TIOCSWINSZ) */
 }
