@@ -21,7 +21,7 @@ import sys
 import tty
 import signal
 
-__all__ = ["openpty", "fork", "login_tty", "spawn"]
+__all__ = ["openpty", "forkpty", "login_tty", "spawn"]
 
 STDIN_FILENO = 0
 STDOUT_FILENO = 1
@@ -67,62 +67,45 @@ def login_tty(fd):
     if fd != STDIN_FILENO and fd != STDOUT_FILENO and fd != STDERR_FILENO:
         os.close(fd)
 
-def _open_terminal():
-    """Open pty master and return (master_fd, tty_name)."""
-    for x in 'pqrstuvwxyzPQRST':
-        for y in '0123456789abcdef':
-            pty_name = '/dev/pty' + x + y
-            try:
-                fd = os.open(pty_name, os.O_RDWR)
-            except OSError:
-                continue
-            return (fd, '/dev/tty' + x + y)
-    raise OSError('out of pty devices')
-
-def openpty(mode=None, winsz=None):
+def openpty(name=False, mode=None, winsz=None):
     """openpty() -> (master_fd, slave_fd)
     Open a pty master/slave pair, using os.openpty() if possible."""
 
-    try:
-        master_fd, slave_fd = os.openpty()
-    except (AttributeError, OSError):
-        master_fd, slave_name = _open_terminal()
-        slave_fd = slave_open(slave_name)
+    master_fd, slave_fd = os.openpty()
 
     if mode:
         tty.tcsetattr(slave_fd, tty.TCSAFLUSH, mode)
     if tty.HAVE_WINSZ and winsz:
         tty.setwinsize(slave_fd, winsz)
 
-    return master_fd, slave_fd
-
-def fork(mode=None, winsz=None):
-    """fork() -> (pid, master_fd)
-    Fork and make the child a session leader with a controlling terminal."""
-
-    if not mode and not winsz:
-        try:
-            pid, fd = os.forkpty()
-        except (AttributeError, OSError):
-            pass
-        else:
-            if pid == CHILD:
-                try:
-                    os.setsid()
-                except OSError:
-                    # os.forkpty() already set us session leader
-                    pass
-            return pid, fd
-
-    master_fd, slave_fd = openpty(mode, winsz)
-    pid = os.fork()
-    if pid == CHILD:
-        os.close(master_fd)
-        tty.login(slave_fd)
+    if name:
+        return master_fd, slave_fd, os.ttyname(slave_fd)
     else:
-        os.close(slave_fd)
+        return master_fd, slave_fd
 
-    # Parent and child process.
+def forkpty(name=False, mode=None, winsz=None):
+    """forkpty() -> (pid, master_fd)
+    Fork and make the child a session leader with a controlling terminal."""
+    try:
+        pid, master_fd = os.forkpty()
+    except (AttributeError, OSError):
+        master_fd, slave_fd = openpty()
+        pid = os.fork()
+        if pid == CHILD:
+            os.close(master_fd)
+            login_tty(slave_fd)
+        else:
+            os.close(slave_fd)
+
+    if pid == CHILD:
+        # os.forkpty()/login_tty() makes sure that the
+        # slave end of the pty becomes the stdin of the
+        # child; this is usually done via a dup2() call
+        if mode:
+            tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
+        if tty.HAVE_WINSZ and winsz:
+            tty.setwinsize(STDIN_FILENO, winsz)
+
     return pid, master_fd
 
 def _writen(fd, data):
@@ -249,7 +232,7 @@ def spawn(argv, master_read=_read, stdin_read=_read, slave_echo=True, handle_win
     pid = os.fork()
     if pid == CHILD:
         os.close(master_fd)
-        tty.login(slave_fd)
+        login_tty(slave_fd)
         _sigreset(saved_mask)
         os.execlp(argv[0], *argv)
 
