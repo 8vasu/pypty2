@@ -21,7 +21,7 @@ import sys
 import tty
 import signal
 
-__all__ = ["openpty", "forkpty", "spawn"]
+__all__ = ["openpty", "fork", "spawn"]
 
 STDIN_FILENO = 0
 STDOUT_FILENO = 1
@@ -39,35 +39,7 @@ if tty.HAVE_WINSZ:
     except AttributeError:
         pass
 
-def login_tty(fd): # move to posixmodule.c
-    """Prepare a terminal for a new login session.
-    Makes the calling process a session leader; the tty of which
-    fd is a file descriptor becomes the controlling tty, the stdin,
-    the stdout, and the stderr of the calling process. Closes fd."""
-    # Establish a new session.
-    os.setsid()
-
-    # The tty becomes the controlling terminal.
-    try:
-        ioctl(fd, TIOCSCTTY)
-    except (NameError, OSError):
-        # Fallback method; from Advanced Programming in the UNIX(R)
-        # Environment, Third edition, 2013, Section 9.6 - Controlling Terminal:
-        # "Systems derived from UNIX System V allocate the controlling
-        # terminal for a session when the session leader opens the first
-        # terminal device that is not already associated with a session, as
-        # long as the call to open does not specify the O_NOCTTY flag."
-        tmp_fd = os.open(os.ttyname(fd), os.O_RDWR)
-        os.close(tmp_fd)
-
-    # The tty becomes stdin/stdout/stderr.
-    os.dup2(fd, STDIN_FILENO)
-    os.dup2(fd, STDOUT_FILENO)
-    os.dup2(fd, STDERR_FILENO)
-    if fd != STDIN_FILENO and fd != STDOUT_FILENO and fd != STDERR_FILENO:
-        os.close(fd)
-
-def openpty(name=False, mode=None, winsz=None):
+def openpty(mode=None, winsz=None, name=False):
     """openpty() -> (master_fd, slave_fd)
     Open a pty master/slave pair, using os.openpty() if possible."""
 
@@ -83,28 +55,28 @@ def openpty(name=False, mode=None, winsz=None):
     else:
         return master_fd, slave_fd
 
-def forkpty(mode=None, winsz=None):
-    """forkpty() -> (pid, master_fd)
+def fork(mode=None, winsz=None):
+    """fork() -> (pid, master_fd)
     Fork and make the child a session leader with a controlling terminal."""
     try:
         pid, master_fd = os.forkpty()
-    except (AttributeError, OSError): # move to posixmodule.c
-        master_fd, slave_fd = openpty()
+    except AttributeError:
+        master_fd, slave_fd = openpty(mode, winsz)
         pid = os.fork()
         if pid == CHILD:
             os.close(master_fd)
             os.login_tty(slave_fd)
         else:
             os.close(slave_fd)
-
-    if pid == CHILD:
-        # os.forkpty()/os.login_tty() makes sure that the
-        # slave end of the pty becomes the stdin of the
-        # child; this is usually done via a dup2() call
-        if mode:
-            tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
-        if tty.HAVE_WINSZ and winsz:
-            tty.tcsetwinsize(STDIN_FILENO, winsz)
+    else:
+        # os.forkpty() makes sure that the slave end of
+        # the pty becomes the stdin of the child; this
+        # is usually done via a dup2() call
+        if pid == CHILD:
+            if mode:
+                tty.tcsetattr(STDIN_FILENO, tty.TCSAFLUSH, mode)
+            if tty.HAVE_WINSZ and winsz:
+                tty.tcsetwinsize(STDIN_FILENO, winsz)
 
     return pid, master_fd
 
