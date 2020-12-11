@@ -31,13 +31,16 @@ CHILD = 0
 
 ALL_SIGNALS = signal.valid_signals()
 
-HAVE_WINCH = False
-if tty.HAVE_WINSZ:
-    try:
-        SIGWINCH = signal.SIGWINCH
-        HAVE_WINCH = True
-    except AttributeError:
-        pass
+try:
+    from termios import TIOCGWINSZ, TIOCSWINSZ
+    HAVE_WINSZ = True
+except ImportError:
+    HAVE_WINSZ = False
+
+if HAVE_WINSZ and hasattr(signal, "SIGWINCH"):
+    HAVE_WINCH = True
+else:
+    HAVE_WINCH = False
 
 def openpty(mode=None, winsz=None, name=False):
     """openpty() -> (master_fd, slave_fd)

@@ -7256,12 +7256,12 @@ calling process; close fd.
 
 static PyObject *
 os_login_tty_impl(PyObject *module, int fd)
+/*[clinic end generated code: output=495a79911b4cc1bc input=5f298565099903a2]*/
 {
 #if defined(HAVE_LOGIN_TTY)
     if (login_tty(fd) == -1) {
         return posix_error();
     }
-    Py_RETURN_NONE;
 #else /* defined(HAVE_FALLBACK_LOGIN_TTY) */
     /* Establish a new session. */
     if (setsid() == -1) {
@@ -7290,15 +7290,17 @@ os_login_tty_impl(PyObject *module, int fd)
         return posix_error();
     }
     close(tmpfd);
+#endif /* defined(TIOCSCTTY) */
 
     /* The tty becomes stdin/stdout/stderr */
-    dup2(fd, 0);
-    dup2(fd, 1);
-    dup2(fd, 2);
+    if (dup2(fd, 0) == -1 || dup2(fd, 1) == -1 || dup2(fd, 2) == -1) {
+        return posix_error();
+    }
     if (fd > 2) {
         close(fd);
     }
 #endif /* defined(HAVE_LOGIN_TTY) */
+    Py_RETURN_NONE;
 }
 #endif /* defined(HAVE_LOGIN_TTY) || defined(HAVE_FALLBACK_LOGIN_TTY) */
 
@@ -14719,6 +14721,7 @@ static PyMethodDef posix_methods[] = {
     OS_SCHED_GETAFFINITY_METHODDEF
     OS_OPENPTY_METHODDEF
     OS_FORKPTY_METHODDEF
+    OS_LOGIN_TTY_METHODDEF
     OS_GETEGID_METHODDEF
     OS_GETEUID_METHODDEF
     OS_GETGID_METHODDEF
