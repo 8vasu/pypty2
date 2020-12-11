@@ -31,10 +31,9 @@ CHILD = 0
 
 ALL_SIGNALS = signal.valid_signals()
 
-try:
-    from termios import TIOCGWINSZ, TIOCSWINSZ
+if hasattr(tty, "TIOCGWINSZ") and hasattr(tty, "TIOCSWINSZ"):
     HAVE_WINSZ = True
-except ImportError:
+else:
     HAVE_WINSZ = False
 
 if HAVE_WINSZ and hasattr(signal, "SIGWINCH"):
