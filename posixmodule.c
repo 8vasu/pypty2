@@ -7285,7 +7285,16 @@ os_login_tty_impl(PyObject *module, int fd)
         return posix_error();
     }
 
-    tmpfd = open(tmppath, O_RDWR);
+#define CLOSE_IF_NOT_FD(otherfd) \
+    if (fd != otherfd) { \
+        close(otherfd); \
+    } \
+
+    CLOSE_IF_NOT_FD(0);
+    CLOSE_IF_NOT_FD(1);
+    CLOSE_IF_NOT_FD(2);
+
+    int tmpfd = open(tmppath, O_RDWR);
     if (tmpfd == -1) {
         return posix_error();
     }
