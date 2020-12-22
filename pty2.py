@@ -71,6 +71,8 @@ def fork(mode=None, winsz=None):
         else:
             os.close(slave_fd)
     else:
+        # re-introduce the os.setsid() call here?
+        #
         # os.forkpty() makes sure that the slave end of
         # the pty becomes the stdin of the child; this
         # is usually done via a dup2() call
